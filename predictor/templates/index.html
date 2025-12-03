@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Salary Predictor</title>
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 for beautiful alerts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #00f2c3; /* Cyan */
+            --accent: #ba54f5;  /* Purple */
+            --secondary: #fd79a8; /* Pink */
+            --dark-bg: #0f1123;
+            --card-bg: rgba(39, 41, 61, 0.95);
+            --glass: rgba(255, 255, 255, 0.08);
+            --success: #00d68f;
+            --warning: #ffa502;
+            --danger: #ff4757;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(ellipse at top, #2b3595 0%, #1e1e2f 50%, #0f1123 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            gap: 30px;
+            align-items: stretch;
+        }
+
+        /* LEFT CARD - INPUTS */
+        .input-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
+            width: 400px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            animation: slideInLeft 0.8s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* RIGHT CARD - RESULTS & GRAPH */
+        .output-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
+            flex: 1;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            animation: slideInRight 0.8s ease-out 0.2s both;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .output-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .icon-container {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 6px 20px rgba(0, 242, 195, 0.3);
+        }
+
+        h1 {
+            margin: 0;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            font-size: 28px;
+            text-align: left;
+            flex: 1;
+        }
+
+        .sub-text { 
+            color: #aaa; 
+            font-size: 14px; 
+            margin-bottom: 30px;
+            text-align: left;
+            line-height: 1.5;
+        }
+
+        /* MODEL STATUS INDICATOR */
+        .model-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 10px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--warning);
+        }
+
+        .status-dot.trained {
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.untrained {
+            background: var(--danger);
+        }
+
+        /* INPUT GROUPS */
+        .input-group {
+            text-align: left;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        label { 
+            color: #ddd; 
+            font-size: 14px; 
+            font-weight: 500; 
+            margin-left: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        label i {
+            color: var(--primary);
+            font-size: 16px;
+        }
+        
+        input[type="number"] {
+            width: 100%; 
+            padding: 16px 20px; 
+            margin-top: 5px;
+            background: var(--glass);
+            border: 2px solid rgba(255,255,255,0.1);
+            color: white; 
+            border-radius: 12px;
+            font-family: 'Poppins'; 
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:hover {
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        input[type="number"]:focus { 
+            border-color: var(--primary); 
+            outline: none; 
+            box-shadow: 0 0 0 3px rgba(0, 242, 195, 0.2); 
+        }
+
+        /* SLIDER STYLING */
+        .slider-container {
+            background: var(--glass);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 8px;
+        }
+
+        input[type="range"] { 
+            width: 100%; 
+            height: 8px;
+            margin-top: 5px; 
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(186, 84, 245, 0.8);
+            border: 3px solid white;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(186, 84, 245, 0.8);
+            border: 3px solid white;
+        }
+
+        .skill-level-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+
+        .level-badge {
+            background: linear-gradient(135deg, var(--accent), #7d2ae8);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(186, 84, 245, 0.4);
+        }
+
+        .level-stars {
+            display: flex;
+            gap: 4px;
+        }
+
+        .level-stars i {
+            color: #ffd700;
+            font-size: 14px;
+        }
+
+        /* BUTTON */
+        .btn-main {
+            width: 100%; 
+            padding: 18px; 
+            margin-top: 20px;
+            background: linear-gradient(135deg, var(--accent), #7d2ae8);
+            border: none; 
+            border-radius: 12px;
+            font-weight: 600; 
+            cursor: pointer; 
+            color: white;
+            font-size: 17px; 
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(186, 84, 245, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-main:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 15px 30px rgba(186, 84, 245, 0.6); 
+        }
+
+        .btn-main:active {
+            transform: translateY(0);
+        }
+
+        .btn-main:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-main i {
+            font-size: 20px;
+        }
+
+        /* RESULTS SECTION */
+        .result-container {
+            margin-top: 10px;
+            background: var(--glass); 
+            border-radius: 16px;
+            padding: 25px; 
+            border: 1px solid rgba(255,255,255,0.08);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .salary-display {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .salary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .salary-item:last-child {
+            border-bottom: none;
+        }
+
+        .salary-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            color: #ccc;
+        }
+
+        .salary-label i {
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .salary-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .yearly-salary {
+            color: var(--primary);
+            text-shadow: 0 0 15px rgba(0, 242, 195, 0.5);
+        }
+
+        .monthly-salary {
+            color: #fdcb6e;
+            text-shadow: 0 0 15px rgba(253, 203, 110, 0.4);
+        }
+
+        /* NO DATA MESSAGE */
+        .no-data-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .no-data-message i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--warning);
+        }
+
+        .no-data-message h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #fdcb6e;
+        }
+
+        .no-data-message p {
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: #aaa;
+        }
+
+        .btn-train {
+            background: linear-gradient(135deg, var(--primary), #00c9a7);
+            color: #0f1123;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+
+        .btn-train:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 242, 195, 0.3);
+        }
+
+        /* GRAPH CONTAINER */
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 30px 0 15px 0;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ddd;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chart-btn {
+            background: var(--glass);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #ccc;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chart-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .chart-btn.active {
+            background: var(--primary);
+            color: #0f1123;
+            font-weight: 600;
+        }
+
+        .chart-wrapper {
+            flex: 1;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 15px;
+            margin-top: 10px;
+            min-height: 250px;
+        }
+
+        /* COMPARISON SECTION */
+        .comparison-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 20px;
+        }
+
+        .comparison-box {
+            background: var(--glass);
+            border-radius: 16px;
+            padding: 10px;
+            flex: 1;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .comparison-title {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+
+        .comparison-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        /* FOOTER LINK */
+        .link-btn { 
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px; 
+            font-size: 14px; 
+            color: #888; 
+            text-decoration: none; 
+            transition: 0.3s; 
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+        }
+
+        .link-btn:hover { 
+            color: var(--primary); 
+            background: rgba(0, 242, 195, 0.05);
+        }
+
+        /* ANIMATIONS */
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 242, 195, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 242, 195, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 242, 195, 0); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .input-card, .output-card {
+                width: 100%;
+                max-width: 600px;
+            }
+        }
+
+        /* LOADING SPINNER */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* TOOLTIP */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: rgba(30, 30, 50, 0.95);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- LEFT CARD - INPUT SECTION -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="icon-container">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div>
+                    <h1>AI Salary Predictor</h1>
+                    <div class="sub-text">Enter your details below to get an accurate salary prediction based on deep learning analysis of industry data patterns.
+                        <span class="model-status" id="modelStatusIndicator">
+                            <span class="status-dot" id="statusDot"></span>
+                            <span id="modelStatusText">Checking...</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <div class="input-header">
+                    <label><i class="fas fa-user-graduate"></i> Years of Experience</label>
+                    <div class="tooltip">
+                        <i class="fas fa-info-circle" style="color: #888; font-size: 14px;"></i>
+                        <span class="tooltiptext">Include internships and part-time work. Use decimals for partial years (e.g., 2.5 for 2 years 6 months).</span>
+                    </div>
+                </div>
+                <input type="number" id="years" placeholder="e.g., 3.5" min="0" max="50" step="0.5">
+            </div>
+
+            <div class="input-group">
+                <div class="input-header">
+                    <label><i class="fas fa-star"></i> Skill Level</label>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="level" min="1" max="10" value="5" oninput="updateLevel(this.value)">
+                    <div class="skill-level-display">
+                        <div class="level-badge">
+                            <span>Level: <span id="lvl">5</span>/10</span>
+                        </div>
+                        <div class="level-stars" id="stars">
+                            <!-- Stars will be generated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-main pulse-animation" onclick="predict()" id="predict-btn">
+                <i class="fas fa-chart-line"></i>
+                PREDICT SALARY
+            </button>
+            
+            <div class="spinner" id="loading-spinner"></div>
+
+            <a href="/train/" class="link-btn">
+                <i class="fas fa-cogs"></i>
+                Open Training Dashboard
+            </a>
+        </div>
+
+        <!-- RIGHT CARD - RESULTS & GRAPH -->
+        <div class="output-card">
+            <div class="card-header">
+                <div class="icon-container">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h1>Prediction Results</h1>
+            </div>
+            
+            <!-- NO DATA MESSAGE (Initially shown) -->
+            <div id="noDataMessage" class="no-data-message">
+                <i class="fas fa-database"></i>
+                <h3>AI Needs Training!</h3>
+                <p>The AI model hasn't been trained yet. Add training data to enable accurate salary predictions.</p>
+                <a href="/train/" class="btn-train">
+                    <i class="fas fa-graduation-cap"></i>
+                    Go to Training Dashboard
+                </a>
+            </div>
+            
+            <!-- RESULTS SECTION (Initially hidden) -->
+            <div id="res-cont" class="result-container" style="display: none;">
+                <div class="salary-display">
+                    <div class="salary-item">
+                        <div class="salary-label">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Yearly Package (CTC)</span>
+                        </div>
+                        <div id="y-val" class="salary-value yearly-salary">₹ 0</div>
+                    </div>
+                    <div class="salary-item">
+                        <div class="salary-label">
+                            <i class="fas fa-wallet"></i>
+                            <span>Monthly In-Hand</span>
+                        </div>
+                        <div id="m-val" class="salary-value monthly-salary">₹ 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COMPARISON SECTION -->
+            <div id="comparison-cont" class="comparison-container" style="display: none;">
+                <div class="comparison-box">
+                    <div class="comparison-title">Market Average</div>
+                    <div id="market-avg" class="comparison-value">₹ 0</div>
+                </div>
+                <div class="comparison-box">
+                    <div class="comparison-title">Percentile</div>
+                    <div id="percentile" class="comparison-value">0%</div>
+                </div>
+                <div class="comparison-box">
+                    <div class="comparison-title">Industry Potential</div>
+                    <div id="potential" class="comparison-value">High</div>
+                </div>
+            </div>
+
+            <!-- GRAPH SECTION -->
+            <div class="chart-header">
+                <div class="chart-title">Salary Growth Projection</div>
+                <div class="chart-controls">
+                    <button class="chart-btn active" onclick="changeChartType('line')">Line</button>
+                    <button class="chart-btn" onclick="changeChartType('bar')">Bar</button>
+                    <button class="chart-btn" onclick="toggleDataPoints()">
+                        <i class="fas fa-circle" id="point-toggle-icon"></i> Points
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chart-wrapper">
+                <canvas id="salaryChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize variables
+        let chart;
+        let showDataPoints = true;
+        let currentChartType = 'line';
+        let modelIsTrained = false;
+        
+        // Function to update skill level display with stars
+        function updateLevel(val) {
+            document.getElementById('lvl').innerText = val;
+            
+            // Update stars visualization
+            const starsContainer = document.getElementById('stars');
+            starsContainer.innerHTML = '';
+            
+            const fullStars = Math.floor(val / 2);
+            const hasHalfStar = val % 2 >= 1;
+            
+            for (let i = 0; i < 5; i++) {
+                const star = document.createElement('i');
+                if (i < fullStars) {
+                    star.className = 'fas fa-star';
+                    star.style.color = '#ffd700';
+                } else if (i === fullStars && hasHalfStar) {
+                    star.className = 'fas fa-star-half-alt';
+                    star.style.color = '#ffd700';
+                } else {
+                    star.className = 'far fa-star';
+                    star.style.color = '#555';
+                }
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Initialize stars on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            updateLevel(5); // Default value
+            
+            // Check if model is trained
+            await checkModelStatus();
+            
+            // Initialize chart only if model is trained
+            if (modelIsTrained) {
+                initializeChart();
+                showPredictionUI();
+            } else {
+                showNoDataUI();
+            }
+        });
+
+        // Check if AI model is trained
+        async function checkModelStatus() {
+            try {
+                // Try to make a test prediction to check model status
+                const response = await fetch('/api/predict/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ years: 3, level: 5 })
+                });
+                
+                const data = await response.json();
+                
+                // Check if we got a valid prediction or an error
+                if (response.ok && data.yearly && !data.yearly.includes("No Data")) {
+                    modelIsTrained = true;
+                    updateModelStatusUI('Trained', 'success');
+                } else {
+                    modelIsTrained = false;
+                    updateModelStatusUI('Not Trained', 'danger');
+                }
+            } catch (error) {
+                console.log('Model not trained:', error);
+                modelIsTrained = false;
+                updateModelStatusUI('Not Trained', 'danger');
+            }
+        }
+
+        // Update model status UI
+        function updateModelStatusUI(status, type) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('modelStatusText');
+            
+            statusText.textContent = status;
+            
+            // Remove all classes
+            statusDot.classList.remove('trained', 'untrained');
+            
+            if (type === 'success') {
+                statusDot.classList.add('trained');
+                statusText.style.color = 'var(--success)';
+            } else {
+                statusDot.classList.add('untrained');
+                statusText.style.color = 'var(--danger)';
+            }
+        }
+
+        // Show no data UI
+        function showNoDataUI() {
+            document.getElementById('noDataMessage').style.display = 'block';
+            document.getElementById('res-cont').style.display = 'none';
+            document.getElementById('comparison-cont').style.display = 'none';
+            document.getElementById('predict-btn').disabled = true;
+            
+            // Hide chart controls
+            document.querySelector('.chart-header').style.display = 'none';
+            document.querySelector('.chart-wrapper').innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666;">
+                    <i class="fas fa-chart-line" style="font-size: 48px; margin-bottom: 20px;"></i>
+                    <p>Add training data to see visualizations</p>
+                </div>
+            `;
+        }
+
+        // Show prediction UI
+        function showPredictionUI() {
+            document.getElementById('noDataMessage').style.display = 'none';
+            document.querySelector('.chart-header').style.display = 'flex';
+            document.getElementById('predict-btn').disabled = false;
+        }
+
+        // --- CHART INITIALIZATION ---
+        function initializeChart() {
+            const ctx = document.getElementById('salaryChart').getContext('2d');
+            
+            // Create Gradient for the Line
+            let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 242, 195, 0.3)');
+            gradient.addColorStop(0.7, 'rgba(0, 242, 195, 0.1)');
+            gradient.addColorStop(1, 'rgba(0, 242, 195, 0.0)');
+
+            // Market data - realistic salary progression
+            const marketData = [
+                {x: 0, y: 300000},   // Fresher
+                {x: 1, y: 550000},   // 1 year
+                {x: 2, y: 800000},   // 2 years
+                {x: 3, y: 1200000},  // 3 years
+                {x: 4, y: 1600000},  // 4 years
+                {x: 5, y: 2100000},  // 5 years
+                {x: 7, y: 3000000},  // 7 years
+                {x: 10, y: 5500000}, // 10 years
+                {x: 15, y: 9000000}, // 15 years
+                {x: 20, y: 12000000} // 20 years
+            ];
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Market Average',
+                            data: marketData,
+                            borderColor: '#00f2c3',
+                            backgroundColor: gradient,
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Your Prediction',
+                            data: [],
+                            backgroundColor: '#ba54f5',
+                            borderColor: '#fff',
+                            borderWidth: 3,
+                            pointRadius: 8,
+                            pointHoverRadius: 12,
+                            type: 'scatter'
+                        },
+                        {
+                            label: 'Skill Boost',
+                            data: [],
+                            borderColor: '#fd79a8',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: true, 
+                            labels: { 
+                                color: '#ccc', 
+                                font: {size: 11},
+                                padding: 15,
+                                usePointStyle: true
+                            },
+                            position: 'top'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 17, 35, 0.95)',
+                            titleColor: '#00f2c3',
+                            bodyColor: '#fff',
+                            padding: 12,
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        if (context.parsed.y >= 1000000) {
+                                            label += '₹ ' + (context.parsed.y / 1000000).toFixed(1) + 'M';
+                                        } else if (context.parsed.y >= 100000) {
+                                            label += '₹ ' + (context.parsed.y / 100000).toFixed(1) + 'L';
+                                        } else {
+                                            label += '₹ ' + context.parsed.y.toLocaleString();
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            grid: { 
+                                color: 'rgba(255,255,255,0.05)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#888',
+                                font: {size: 11},
+                                callback: function(value) {
+                                    return value + ' yrs';
+                                }
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Years of Experience', 
+                                color: '#aaa', 
+                                font: {size: 12, weight: '500'} 
+                            }
+                        },
+                        y: {
+                            grid: { 
+                                color: 'rgba(255,255,255,0.05)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#888',
+                                font: {size: 11},
+                                callback: function(value) {
+                                    if (value >= 10000000) {
+                                        return '₹' + (value / 10000000).toFixed(1) + 'Cr';
+                                    } else if (value >= 100000) {
+                                        return '₹' + (value / 100000) + 'L';
+                                    } else if (value >= 1000) {
+                                        return '₹' + (value / 1000) + 'K';
+                                    }
+                                    return '₹' + value;
+                                }
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Annual Salary (₹)', 
+                                color: '#aaa', 
+                                font: {size: 12, weight: '500'} 
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // --- CHART CONTROLS ---
+        function changeChartType(type) {
+            if (!modelIsTrained) return;
+            
+            currentChartType = type;
+            
+            // Update button states
+            document.querySelectorAll('.chart-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Change chart type for market data line
+            chart.config.type = type;
+            chart.update();
+        }
+
+        function toggleDataPoints() {
+            if (!modelIsTrained) return;
+            
+            showDataPoints = !showDataPoints;
+            const icon = document.getElementById('point-toggle-icon');
+            
+            if (showDataPoints) {
+                chart.data.datasets[0].pointRadius = 4;
+                icon.className = 'fas fa-circle';
+                event.target.classList.add('active');
+            } else {
+                chart.data.datasets[0].pointRadius = 0;
+                icon.className = 'far fa-circle';
+                event.target.classList.remove('active');
+            }
+            
+            chart.update();
+        }
+
+        // --- PREDICT FUNCTION ---
+        async function predict() {
+            const years = parseFloat(document.getElementById('years').value);
+            const level = parseInt(document.getElementById('level').value);
+            
+            if (!years || years < 0 || years > 50) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Input',
+                    text: 'Please enter a valid experience between 0 and 50 years',
+                    confirmButtonColor: '#00f2c3',
+                    background: '#222338',
+                    color: '#ffffff'
+                });
+                return;
+            }
+
+            // Show loading spinner
+            const spinner = document.getElementById('loading-spinner');
+            const btn = document.getElementById('predict-btn');
+            spinner.style.display = 'block';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PREDICTING...';
+            btn.disabled = true;
+
+            try {
+                // Call actual API endpoint
+                const response = await fetch('/api/predict/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        years: years, 
+                        level: level 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Prediction failed');
+                }
+                
+                // Check if model is not trained
+                if (data.yearly && data.yearly.includes("No Data")) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'AI Not Trained',
+                        html: `<div style="text-align: center;">
+                            <i class="fas fa-graduation-cap" style="font-size: 48px; color: #ffa502; margin-bottom: 20px;"></i>
+                            <p>The AI model needs training data to make accurate predictions.</p>
+                            <p style="font-size: 14px; color: #aaa; margin-top: 10px;">Add salary data points in the training dashboard first.</p>
+                        </div>`,
+                        confirmButtonText: '<i class="fas fa-cogs"></i> Go to Training',
+                        confirmButtonColor: '#00f2c3',
+                        showCancelButton: true,
+                        cancelButtonText: 'Cancel',
+                        background: '#222338',
+                        color: '#ffffff'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = '/train/';
+                        }
+                    });
+                    return;
+                }
+                
+                // Parse the salary values
+                const yearlyMatch = data.yearly.match(/₹\s*([\d,]+)/);
+                const monthlyMatch = data.monthly.match(/₹\s*([\d,]+)/);
+                
+                if (!yearlyMatch || !monthlyMatch) {
+                    throw new Error('Invalid response format');
+                }
+                
+                const yearlySalary = parseFloat(yearlyMatch[1].replace(/,/g, ''));
+                const monthlySalary = parseFloat(monthlyMatch[1].replace(/,/g, ''));
+                
+                // Show Results
+                const box = document.getElementById('res-cont');
+                const comparisonBox = document.getElementById('comparison-cont');
+                box.style.display = 'block';
+                comparisonBox.style.display = 'flex';
+                
+                // Update UI with actual values
+                document.getElementById('y-val').innerText = data.yearly;
+                document.getElementById('m-val').innerText = data.monthly;
+                
+                // Update comparison data
+                const marketAvg = getMarketAverage(years);
+                const percentile = calculatePercentile(yearlySalary, years);
+                document.getElementById('market-avg').innerText = '₹ ' + marketAvg.toLocaleString('en-IN');
+                document.getElementById('percentile').innerText = percentile + '%';
+                document.getElementById('potential').innerText = getPotentialLevel(percentile);
+                
+                // Update graph with prediction
+                updateChartWithPrediction(years, yearlySalary, level, marketAvg);
+                
+                // Add animation
+                box.style.animation = 'none';
+                setTimeout(() => {
+                    box.style.animation = 'fadeIn 0.5s';
+                }, 10);
+                
+            } catch (error) {
+                console.error('Prediction error:', error);
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Prediction Failed',
+                    text: 'Error making prediction. Please try again.',
+                    confirmButtonColor: '#00f2c3',
+                    background: '#222338',
+                    color: '#ffffff'
+                });
+            } finally {
+                // Hide spinner and reset button
+                spinner.style.display = 'none';
+                btn.innerHTML = '<i class="fas fa-chart-line"></i> PREDICT SALARY';
+                btn.disabled = false;
+            }
+        }
+
+        // --- HELPER FUNCTIONS ---
+        function getMarketAverage(years) {
+            // Simplified market average lookup
+            const averages = {
+                0: 300000, 1: 550000, 2: 800000, 3: 1200000,
+                4: 1600000, 5: 2100000, 7: 3000000, 10: 5500000,
+                15: 9000000, 20: 12000000
+            };
+            
+            // Find closest match
+            const keys = Object.keys(averages).map(Number);
+            const closest = keys.reduce((prev, curr) => {
+                return Math.abs(curr - years) < Math.abs(prev - years) ? curr : prev;
+            });
+            
+            return averages[closest];
+        }
+
+        function calculatePercentile(salary, years) {
+            // Mock percentile calculation
+            const basePercentile = 50 + (years * 2);
+            const marketAvg = getMarketAverage(years);
+            const salaryAdjustment = ((salary - marketAvg) / marketAvg) * 20;
+            return Math.min(99, Math.max(1, Math.round(basePercentile + salaryAdjustment)));
+        }
+
+        function getPotentialLevel(percentile) {
+            if (percentile >= 90) return 'Excellent';
+            if (percentile >= 75) return 'High';
+            if (percentile >= 50) return 'Good';
+            if (percentile >= 25) return 'Moderate';
+            return 'Entry';
+        }
+
+        function updateChartWithPrediction(years, salary, level, marketAvg) {
+            if (!chart) return;
+            
+            // Clear previous prediction data
+            chart.data.datasets[1].data = [{x: years, y: salary}];
+            
+            // Add skill boost projection line
+            const boostData = [];
+            const boostFactor = 1 + (level - 5) * 0.05; // 5% boost per level above 5
+            
+            for (let i = Math.max(0, years - 2); i <= years + 5; i += 0.5) {
+                const marketAtPoint = getMarketAverage(i);
+                const boosted = marketAtPoint * boostFactor;
+                boostData.push({x: i, y: boosted});
+            }
+            
+            chart.data.datasets[2].data = boostData;
+            
+            // Update chart
+            chart.update();
+        }
+    </script>
+</body>
+</html>

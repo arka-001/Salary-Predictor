@@ -1,0 +1,290 @@
+# from django.shortcuts import render
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# import pandas as pd
+# from sklearn.linear_model import LinearRegression
+# from sklearn.exceptions import NotFittedError # New import
+# from .models import SalaryData
+
+# # --- GLOBAL AI MODEL ---
+# ai_model = LinearRegression()
+# model_is_trained = False # Flag to track status
+
+# # --- HELPER: TRAIN AI ---
+# def train_ai():
+#     global ai_model, model_is_trained
+#     dataset = SalaryData.objects.all()
+
+#     # 1. CHECK: Do we have enough data?
+#     # Linear Regression needs at least 1 row (ideally 2+)
+#     if len(dataset) < 1:
+#         print("⚠ Database Empty. AI cannot train.")
+#         model_is_trained = False
+#         return
+
+#     # 2. TRAIN
+#     try:
+#         df = pd.DataFrame(list(dataset.values('years', 'job_level', 'salary')))
+#         ai_model.fit(df[['years', 'job_level']], df['salary'])
+#         model_is_trained = True
+#         print(f"✅ AI Retrained on {len(df)} rows")
+#     except Exception as e:
+#         print(f"Error training: {e}")
+#         model_is_trained = False
+
+# # Initialize on startup
+# train_ai()
+
+
+# # --- HTML VIEWS ---
+# def home(request):
+#     return render(request, 'index.html')
+
+# def train_page(request):
+#     db_data = SalaryData.objects.all().order_by('years')
+#     return render(request, 'train.html', {'dataset': db_data})
+
+
+# # --- API 1: PREDICT ---
+# class PredictAPI(APIView):
+#     def post(self, request):
+#         if not model_is_trained:
+#             return Response({'salary': "No Data! Please train me."}, status=200)
+
+#         try:
+#             years = float(request.data.get('years'))
+#             level = int(request.data.get('level'))
+            
+#             pred = ai_model.predict([[years, level]])[0]
+            
+#             yearly_salary = abs(pred)
+#             monthly_salary = yearly_salary / 12
+            
+#             return Response({
+#                 'yearly': f"₹ {yearly_salary:,.0f}",
+#                 'monthly': f"₹ {monthly_salary:,.0f}",
+#                 'raw': yearly_salary
+#             }, status=200)
+#         except Exception as e:
+#             return Response({'error': str(e)}, status=400)
+
+
+# # --- API 2: ADD DATA ---
+# class TrainAPI(APIView):
+#     def post(self, request):
+#         try:
+#             SalaryData.objects.create(
+#                 years = request.data.get('years'),
+#                 job_level = request.data.get('level'),
+#                 salary = request.data.get('salary')
+#             )
+#             train_ai()
+#             return Response({'message': 'Success'}, status=200)
+#         except Exception as e:
+#             return Response({'error': str(e)}, status=400)
+
+
+# # --- API 3: DELETE DATA ---
+# class DeleteAPI(APIView):
+#     def post(self, request):
+#         try:
+#             row_id = request.data.get('id')
+#             SalaryData.objects.get(id=row_id).delete()
+#             train_ai() # Retrain after delete
+#             return Response({'message': 'Deleted'}, status=200)
+#         except Exception as e:
+#             return Response({'error': str(e)}, status=400)
+
+
+# # --- API 4: RESTORE DEFAULTS (Button Logic) ---
+# class ResetAPI(APIView):
+#     def post(self, request):
+#         # 1. Clear existing data (Optional: Remove this line if you want to Append instead of Replace)
+#         SalaryData.objects.all().delete()
+        
+#         # 2. Define the Default Data
+#         defaults = [
+#             (1, 1, 300000), 
+#             (2, 2, 500000), 
+#             (3, 5, 800000), 
+#             (4, 5, 1200000), 
+#             (5, 9, 2500000), 
+#             (8, 7, 2800000), 
+#             (10, 10, 5000000)
+#         ]
+        
+#         # 3. Insert into Database
+#         for y, l, s in defaults:
+#             SalaryData.objects.create(years=y, job_level=l, salary=s)
+            
+#         # 4. Retrain AI
+#         train_ai()
+        
+#         return Response({'message': 'Defaults Loaded'}, status=200)
+
+
+
+
+from django.shortcuts import render
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from django.db.models import Avg, Sum, Count
+from .models import SalaryData
+
+# --- GLOBAL AI MODEL ---
+ai_model = LinearRegression()
+model_is_trained = False # Flag to track status
+
+# --- HELPER: TRAIN AI ---
+def train_ai():
+    global ai_model, model_is_trained
+    dataset = SalaryData.objects.all()
+
+    # 1. CHECK: Do we have enough data?
+    # Linear Regression needs at least 1 row (ideally 2+)
+    if len(dataset) < 1:
+        print("⚠ Database Empty. AI cannot train.")
+        model_is_trained = False
+        return
+
+    # 2. TRAIN
+    try:
+        df = pd.DataFrame(list(dataset.values('years', 'job_level', 'salary')))
+        ai_model.fit(df[['years', 'job_level']], df['salary'])
+        model_is_trained = True
+        print(f"✅ AI Retrained on {len(df)} rows")
+    except Exception as e:
+        print(f"Error training: {e}")
+        model_is_trained = False
+
+# Initialize on startup
+train_ai()
+
+
+# --- HTML VIEWS ---
+def home(request):
+    return render(request, 'index.html')
+
+def train_page(request):
+    db_data = SalaryData.objects.all().order_by('years')
+    
+    # Calculate statistics for the template
+    data_count = db_data.count()
+    
+    if data_count > 0:
+        # Calculate average salary
+        avg_salary = db_data.aggregate(Avg('salary'))['salary__avg']
+        # Calculate average years of experience
+        avg_years = db_data.aggregate(Avg('years'))['years__avg']
+    else:
+        avg_salary = 0
+        avg_years = 0
+    
+    context = {
+        'dataset': db_data,
+        'avg_salary': round(avg_salary) if avg_salary else 0,
+        'avg_exp': round(avg_years, 1) if avg_years else 0,
+    }
+    return render(request, 'train.html', context)
+
+
+# --- API 1: PREDICT ---
+class PredictAPI(APIView):
+    def post(self, request):
+        if not model_is_trained:
+            return Response({'salary': "No Data! Please train me."}, status=200)
+
+        try:
+            years = float(request.data.get('years'))
+            level = int(request.data.get('level'))
+            
+            pred = ai_model.predict([[years, level]])[0]
+            
+            yearly_salary = abs(pred)
+            monthly_salary = yearly_salary / 12
+            
+            return Response({
+                'yearly': f"₹ {yearly_salary:,.0f}",
+                'monthly': f"₹ {monthly_salary:,.0f}",
+                'raw': yearly_salary
+            }, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+
+# --- API 2: ADD DATA ---
+class TrainAPI(APIView):
+    def post(self, request):
+        try:
+            SalaryData.objects.create(
+                years = request.data.get('years'),
+                job_level = request.data.get('level'),
+                salary = request.data.get('salary')
+            )
+            train_ai()
+            return Response({'message': 'Success'}, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+
+# --- API 3: DELETE DATA ---
+class DeleteAPI(APIView):
+    def post(self, request):
+        try:
+            row_id = request.data.get('id')
+            SalaryData.objects.get(id=row_id).delete()
+            train_ai() # Retrain after delete
+            return Response({'message': 'Deleted'}, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+
+# --- API 4: RESTORE DEFAULTS (Button Logic) ---
+class ResetAPI(APIView):
+    def post(self, request):
+        # 1. Clear existing data (Optional: Remove this line if you want to Append instead of Replace)
+        SalaryData.objects.all().delete()
+        
+        # 2. Define the Default Data
+        defaults = [
+            (1, 1, 300000), 
+            (2, 2, 500000), 
+            (3, 5, 800000), 
+            (4, 5, 1200000), 
+            (5, 9, 2500000), 
+            (8, 7, 2800000), 
+            (10, 10, 5000000)
+        ]
+        
+        # 3. Insert into Database
+        for y, l, s in defaults:
+            SalaryData.objects.create(years=y, job_level=l, salary=s)
+            
+        # 4. Retrain AI
+        train_ai()
+        
+        return Response({'message': 'Defaults Loaded'}, status=200)
+
+# --- API 5: DELETE ALL DATA ---
+class DeleteAllAPI(APIView):
+    def post(self, request):
+        try:
+            # Get count before deletion
+            data_count = SalaryData.objects.count()
+            
+            # Delete all data
+            SalaryData.objects.all().delete()
+            
+            # Retrain AI (will fail because no data, but that's expected)
+            train_ai()
+            
+            return Response({
+                'message': f'Deleted all {data_count} data points',
+                'count': data_count
+            }, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)

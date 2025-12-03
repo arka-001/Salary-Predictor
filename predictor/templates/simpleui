@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Salary Predictor</title>
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f2c3; /* Cyan */
+            --accent: #ba54f5;  /* Purple */
+            --card-bg: rgba(39, 41, 61, 0.9);
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at top left, #2b3595, #1e1e2f 60%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            padding: 35px;
+            border-radius: 20px;
+            width: 450px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 600;
+        }
+        
+        .sub-text { color: #aaa; font-size: 12px; margin-bottom: 25px; }
+
+        /* INPUTS */
+        .input-group { text-align: left; margin-bottom: 15px; }
+        label { color: #ccc; font-size: 12px; font-weight: 600; margin-left: 5px; }
+        
+        input[type="number"] {
+            width: 100%; padding: 12px; margin-top: 5px;
+            background: var(--glass);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white; border-radius: 8px;
+            box-sizing: border-box; font-family: 'Poppins'; font-size: 14px;
+            transition: 0.3s;
+        }
+        input[type="number"]:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 10px rgba(0, 242, 195, 0.2); }
+
+        /* SLIDER */
+        input[type="range"] { width: 100%; margin-top: 5px; accent-color: var(--accent); cursor: pointer; }
+        .badge { background: rgba(186, 84, 245, 0.2); color: var(--accent); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; float: right; }
+
+        /* BUTTON */
+        .btn-main {
+            width: 100%; padding: 14px; margin-top: 20px;
+            background: linear-gradient(135deg, var(--accent), #7d2ae8);
+            border: none; border-radius: 8px;
+            font-weight: 600; cursor: pointer; color: white;
+            font-size: 16px; transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(186, 84, 245, 0.4);
+        }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(186, 84, 245, 0.6); }
+
+        /* RESULTS BOX */
+        .result-container {
+            display: none; margin-top: 25px;
+            background: var(--glass); border-radius: 12px;
+            padding: 15px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .res-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .res-row:last-child { margin-bottom: 0; }
+        .lbl { font-size: 12px; color: #aaa; }
+        .val { font-size: 18px; font-weight: 600; }
+        .val-year { color: var(--primary); text-shadow: 0 0 10px rgba(0, 242, 195, 0.4); }
+        .val-month { color: #fdcb6e; }
+
+        /* CHART CONTAINER */
+        .chart-wrapper {
+            margin-top: 25px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+
+        .link-btn { display: block; margin-top: 20px; font-size: 12px; color: #666; text-decoration: none; transition: 0.3s; }
+        .link-btn:hover { color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🔮 AI Salary Predictor</h1>
+        <p class="sub-text">Based on Deep Learning of Database Patterns</p>
+        
+        <div class="input-group">
+            <label>Years of Experience</label>
+            <input type="number" id="years" placeholder="Ex: 3.5">
+        </div>
+
+        <div class="input-group">
+            <label>Skill Level (1-10)</label>
+            <span class="badge">Level: <span id="lvl">5</span></span>
+            <input type="range" id="level" min="1" max="10" value="5" oninput="updateLevel(this.value)">
+        </div>
+
+        <button class="btn-main" onclick="predict()">PREDICT SALARY</button>
+        
+        <!-- RESULT SECTION -->
+        <div id="res-cont" class="result-container">
+            <div class="res-row">
+                <div class="lbl">Yearly Package (CTC)</div>
+                <div id="y-val" class="val val-year">₹ 0</div>
+            </div>
+            <div class="res-row">
+                <div class="lbl">Monthly In-Hand</div>
+                <div id="m-val" class="val val-month">₹ 0</div>
+            </div>
+        </div>
+
+        <!-- GRAPH -->
+        <div class="chart-wrapper">
+            <canvas id="salaryChart" height="200"></canvas>
+        </div>
+
+        <a href="/train/" class="link-btn">⚙️ Open Training Dashboard</a>
+    </div>
+
+    <script>
+        function updateLevel(val) { document.getElementById('lvl').innerText = val; }
+
+        // --- 1. SETUP CHART ---
+        const ctx = document.getElementById('salaryChart').getContext('2d');
+        
+        // Create Gradient for the Line
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(0, 242, 195, 0.4)'); // Cyan Top
+        gradient.addColorStop(1, 'rgba(0, 242, 195, 0.0)'); // Transparent Bottom
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                // X-Axis Labels (0 to 10 Years)
+                labels: [0, 2, 4, 6, 8, 10], 
+                datasets: [
+                    {
+                        label: 'Market Average',
+                        // A rough curve representing market growth
+                        data: [300000, 800000, 1600000, 2600000, 3800000, 5500000],
+                        borderColor: '#00f2c3', // Cyan Line
+                        backgroundColor: gradient, // Gradient Fill
+                        borderWidth: 2,
+                        tension: 0.4, // Smooth Curves
+                        fill: true,
+                        pointRadius: 0 // Hide points on the line
+                    },
+                    {
+                        label: 'Your Prediction',
+                        data: [], // Filled dynamically
+                        backgroundColor: '#ba54f5', // Purple Dot
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 12,
+                        type: 'scatter' // It's a single point, not a line
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, labels: { color: '#ccc', font: {size: 10} } },
+                    tooltip: {
+                        backgroundColor: 'rgba(30, 30, 50, 0.9)',
+                        titleColor: '#00f2c3',
+                        bodyColor: '#fff',
+                        padding: 10,
+                        callbacks: {
+                            // Custom Tooltip Text: "₹ 12.5 Lakhs"
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += '₹ ' + (context.parsed.y / 100000).toFixed(1) + ' Lakhs';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#666' },
+                        title: { display: true, text: 'Years Experience', color: '#555', font: {size: 10} }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { 
+                            color: '#666',
+                            // Format Y-Axis: "10L", "20L"
+                            callback: function(value) { return value/100000 + 'L'; } 
+                        }
+                    }
+                }
+            }
+        });
+
+        // --- 2. PREDICT FUNCTION ---
+        async function predict() {
+            const y = document.getElementById('years').value;
+            const l = document.getElementById('level').value;
+            
+            if(!y) return; 
+
+            // Call Django API
+            const res = await fetch('/api/predict/', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ years: y, level: l })
+            });
+
+            const data = await res.json();
+            
+            // Show Results
+            const box = document.getElementById('res-cont');
+            box.style.display = 'block';
+            box.style.animation = "fadeIn 0.5s";
+            
+            document.getElementById('y-val').innerText = data.yearly;
+            document.getElementById('m-val').innerText = data.monthly;
+
+            // Update Graph Point
+            chart.data.datasets[1].data = [{x: y, y: data.raw}];
+            chart.update();
+        }
+    </script>
+</body>
+</html>
